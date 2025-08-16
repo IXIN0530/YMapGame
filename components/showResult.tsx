@@ -1,9 +1,14 @@
 import { ResultType } from "@/type";
 import { motion } from "framer-motion";
+//css擬似要素によりスクロールバーを非表示に
+import "@/app/globals.css"; // Ensure this file contains the necessary styles
 type Props = {
   results: ResultType[],
   isEnd: boolean,
 }
+
+
+
 
 const ShowResult = ({ results, isEnd }: Props) => {
 
@@ -20,13 +25,14 @@ const ShowResult = ({ results, isEnd }: Props) => {
         transition={{ duration: 0.1, delay: 2 }}>Results</motion.p>
       {results.map((result, index) => {
         return (
-          <motion.div key={index} className=" row-span-2 grid grid-cols-10 px-4 py-2 border-b items-end overflow-hidden"
+          <motion.div id={"hidden_bar"} key={index} className=" row-span-2 grid grid-cols-10 px-4 py-2 border-b items-end overflow-hidden"
             animate={isEnd ? { x: 0 } : { x: "-100%" }}
             initial={{ x: "-100%" }}
-            transition={{ duration: 0.1, delay: 2.5 + index * 0.5 }}>
-            <p className="text-lg overflow-scroll whitespace-nowrap col-span-6">{result.name}</p>
+            transition={{ duration: 0.1, delay: 2.5 + index * 1 }}
+          >
+            <p className="text-lg overflow-x-auto whitespace-nowrap col-span-6">{result.name}</p>
             <p className="col-span-1"></p>
-            <p className="text-lg overflow-scroll whitespace-nowrap col-span-3">{(result.distance < 1000) ? result.distance.toFixed(2) + " km" : "--km"} </p>
+            <p className="text-lg overflow-x-auto whitespace-nowrap col-span-3 ">{(result.distance < 1000) ? result.distance.toFixed(2) + " km" : "--km"} </p>
           </motion.div>
         );
       })}
