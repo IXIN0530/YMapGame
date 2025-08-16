@@ -1,3 +1,4 @@
-export type TimerType ={
-  
+export type ResultType = {
+  distance: number;
+  name: string;
 }

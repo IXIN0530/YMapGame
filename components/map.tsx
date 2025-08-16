@@ -10,12 +10,12 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-import allLocationList from "./allLocationList";
 import functions from "@/functions/functions";
-import { time } from "console";
 import axios, { all } from "axios";
 import MyPopup from "./myPopup";
-import { i } from "framer-motion/client";
+import { ResultType } from "@/type";
+import ShowResult from "./showResult";
+import { useRouter } from "next/navigation";
 
 const [iconX, iconY] = [20, 36];
 const DefaultIcon = Leaflet.icon({
@@ -44,9 +44,6 @@ type MyPopupProps = {
 
 const MyMap = () => {
 
-  //テスト
-  const testRef = useRef<Leaflet.Popup>(null);
-
   //初回マウント
   const didMount = useRef(false);
 
@@ -70,8 +67,6 @@ const MyMap = () => {
   //myPopupが開かれているか
   const [isMessagePop, setIsMessagePop] = useState<MyPopupProps>({ text: "", isOpen: false });
 
-  // const position: LatLngExpression = [35.6851, 139.752789]
-
   //中心？
   const [position, setPosition] = useState<[number, number]>([35.6851, 139.752789]);
 
@@ -86,6 +81,13 @@ const MyMap = () => {
 
   //sleep関数
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  //過去の記録
+  const results = useRef<ResultType[]>([]);
+
+  const isEnd = useRef<boolean>(false);
+
+  const router = useRouter();
 
 
   //タイマーをセットする関数
@@ -107,8 +109,10 @@ const MyMap = () => {
     }
     isTimerOn.current = false;
     //もしもタイマー切れの場合、強制的にピンを打つ
-    if(!isCurrentQesEnd.current){
-      
+    if (!isCurrentQesEnd.current) {
+      // results.current = [...results.current, { distance: 9999, name: "タイマー切れ" }];
+      // setQuestion();
+      router.push("/");
     }
     setTimer(0);
   }
@@ -153,6 +157,7 @@ const MyMap = () => {
       //近くになかった場合
       if (data.length === 0) {
         alert("近くにありませんでした");
+        results.current = [...results.current, { distance: 9999, name: categ + "(カンスト)" }];
         setTime(5);
         await sleep(6000);
         setQuestion();
@@ -183,7 +188,9 @@ const MyMap = () => {
       await sleep(flyDuration * 1000);
       alert("距離は" + strDist(dist) + "です!");
       setTime(5);
-      setIsMessagePop({ text: `最寄りの${categ}:${nearest.name},${strDist(dist)} ${timer.toString().slice(-1, 0)}`, isOpen: true });
+      setIsMessagePop({ text: `${nearest.name},${strDist(dist)} \n ${timer.toString().slice(-1, 0)}`, isOpen: true });
+      //結果を保存
+      results.current = [...results.current, { distance: dist, name: categ + "(" + nearest.name + ")" }];
       await sleep(6000);
       setQuestion();
 
@@ -194,6 +201,14 @@ const MyMap = () => {
 
   //問題設定関数
   const setQuestion = async () => {
+    console.log(results);
+    //もし3問してたら結果を表示する
+    if (results.current.length >= 3) {
+      setIsMessagePop({ text: " categ", isOpen: false });
+      isEnd.current = true;
+      return;
+    }
+
     resetQuestion();
     setIsFetchingQes(true)
     const Res = await axios.get("/api/getRandomPos");
@@ -212,6 +227,21 @@ const MyMap = () => {
     setCateg(categ);
     setIsMessagePop({ text: categ + "を探せ！", isOpen: true });
     setTime(20);
+    await sleep(21000);
+    //もしもまだピンが打たれていなかったら、画面の中心に打つ
+    //すでにピンが売ってあったら、そこにする。
+    if (allMarkerPos.length === 0) {
+      const Marker: MarkerType = {
+        pos: [mapRef.current?.getCenter().lat || 0, mapRef.current?.getCenter().lng || 0],
+        text: "選択地点"
+      }
+      setAllMarkerPos([Marker]);
+    }
+    //ゲームが狩猟していなかったら、onPushClickを実行
+    // if (!isCurrentQesEnd.current) {
+    //   await sleep(1000);
+    //   onPushClick();
+    // }
   }
   //問題関連をリセットする関数
   const resetQuestion = () => {
@@ -232,6 +262,10 @@ const MyMap = () => {
   //cursor-crosshairでカーソルがGeoGuesserのようになる
   return (
     <div className="relative">
+      {isEnd.current ?
+        <ShowResult results={results.current} isEnd={isEnd.current} />
+        : null}
+
       <MyPopup text={isTimerOn.current ? isMessagePop.text + timer.toString() : isMessagePop.text} isOpen={isMessagePop.isOpen} />
       <motion.button onClick={onPushClick} className=" font-bold text-white p-2 absolute bottom-2 left-1/2 z-[1000] -translate-x-1/2 rounded-3xl bg-gradient-to-b from-lime-300
        to-green-500 shadow-slate-900 shadow-md w-1/2"
